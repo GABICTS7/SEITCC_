@@ -1,0 +1,36 @@
+{
+    "name": "gestao-escolar-backend",
+    "version": "1.0.0",
+    "description": "Backend do sistema de Gestão Escolar com geração de horários via IA",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js"
+    },
+    "keywords": [
+        "gestao",
+        "escolar",
+        "nodejs",
+        "express",
+        "mysql",
+        "api",
+        "horarios",
+        "ia"
+    ],
+    "author": "Janaina",
+    "license": "MIT",
+    "dependencies": {
+        "bcrypt": "^6.0.0",
+        "cors": "^2.8.5",
+        "dotenv": "^16.5.0",
+        "express": "^4.21.2",
+        "jsonwebtoken": "^9.0.2",
+        "mongoose": "^8.14.2",
+        "mysql": "^2.18.1",
+        "mysql2": "^3.14.1",
+        "node-fetch": "^3.3.2",
+        "path": "^0.12.7"
+    },
+    "devDependencies": {
+        "mongodb-memory-server": "^10.1.4"
+    }
+}

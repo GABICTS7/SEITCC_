@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Eventos - Gestão Escolar</title>
+
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  
+  <!-- Font Awesome (para ícones como no script das Turmas) -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+  <!-- FullCalendar CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css" rel="stylesheet">
+
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+
+    .navbar {
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .logo-admin {
+      background-color: white;
+      color: #0d6efd;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+
+    .card {
+      transition: transform 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+
+    #calendar {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    .fc-event {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- NAVBAR com design do script de Turmas -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container">
+      <a class="navbar-brand" href="#">
+        <i class="fas fa-calendar-alt me-2"></i>Eventos
+      </a>
+      <div class="d-flex align-items-center">
+        <a href="dashboard.html" class="btn btn-outline-light me-2">
+          <i class="fas fa-arrow-left me-1"></i> Voltar
+        </a>
+        <button class="btn btn-outline-light me-2" id="logoutBtn">
+          <i class="fas fa-sign-out-alt"></i> Sair
+        </button>
+        <div class="logo-admin" id="userAvatar">A</div>
+      </div>
+    </div>
+  </nav>
+  
+  <div class="container mt-4">
+    <div class="row">
+      <div class="col-md-4 mb-4">
+        <div class="card h-100">
+          <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Cadastrar Novo Evento</h4>
+          </div>
+          <div class="card-body">
+            <form id="formEvento">
+              <div class="mb-3">
+                <label for="titulo" class="form-label">Título*</label>
+                <input type="text" class="form-control" id="titulo" required>
+              </div>
+              <div class="mb-3">
+                <label for="descricao" class="form-label">Descrição</label>
+                <textarea class="form-control" id="descricao" rows="3"></textarea>
+              </div>
+              <div class="mb-3">
+                <label for="dataInicio" class="form-label">Data Início*</label>
+                <input type="datetime-local" class="form-control" id="dataInicio" required>
+              </div>
+              <div class="mb-3">
+                <label for="dataFim" class="form-label">Data Fim</label>
+                <input type="datetime-local" class="form-control" id="dataFim">
+              </div>
+              <div class="mb-3">
+                <label for="tipo" class="form-label">Tipo de Evento*</label>
+                <select class="form-select" id="tipo" required>
+                  <option value="">Selecione...</option>
+                  <option value="Reunião">Reunião</option>
+                  <option value="Feriado">Feriado</option>
+                  <option value="Prova">Prova</option>
+                  <option value="Evento Escolar">Evento Escolar</option>
+                  <option value="Outro">Outro</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                <i class="bi bi-save"></i> Cadastrar Evento
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-8">
+        <div class="card">
+          <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Calendário de Eventos</h4>
+          </div>
+          <div class="card-body">
+            <div id="calendar"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-4">
+      <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h4 class="mb-0">Próximos Eventos</h4>
+        <button class="btn btn-sm btn-light" onclick="carregarEventos()">
+          <i class="bi bi-arrow-clockwise"></i> Atualizar
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-striped">
+            <thead>
+              <tr>
+                <th>Título</th>
+                <th>Data/Hora</th>
+                <th>Tipo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tabelaEventos">
+              <!-- Eventos serão carregados aqui -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal para visualizar evento -->
+  <div class="modal fade" id="eventoModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="modalTitulo"></h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="modalCorpo">
+          <!-- Conteúdo será preenchido dinamicamente -->
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+          <button type="button" class="btn btn-danger" id="btnExcluirEvento" style="display: none;">Excluir Evento</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de Notificação -->
+  <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+    <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+      <div class="toast-header">
+        <strong class="me-auto" id="toastTitle">Notificação</strong>
+        <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+      <div class="toast-body" id="toastMessage"></div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- FullCalendar JS -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/locales/pt-br.min.js"></script>
+
+  <script>
+    // Variáveis globais
+    let calendar;
+    const eventoModal = new bootstrap.Modal(document.getElementById('eventoModal'));
+    let eventos = [];
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      verificarAutenticacao();
+      inicializarCalendario();
+      configurarEventos();
+      carregarEventos();
+    });
+
+    function verificarAutenticacao() {
+      const token = localStorage.getItem('token');
+      const user = JSON.parse(localStorage.getItem('user'));
+      
+      if (!token || !user) {
+        window.location.href = 'login.html';
+        return;
+      }
+
+      // Exibir informações do usuário
+      const userAvatar = document.getElementById('userAvatar');
+      if (user.nome) {
+        userAvatar.textContent = user.nome.charAt(0).toUpperCase();
+      } else if (user.email) {
+        userAvatar.textContent = user.email.charAt(0).toUpperCase();
+      }
+
+      // Configurar logout
+      document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'login.html';
+      });
+    }
+
+    function inicializarCalendario() {
+      const calendarEl = document.getElementById('calendar');
+      
+      calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'pt-br',
+        headerToolbar: {
+          left: 'prev,next today',
+          center: 'title',
+          right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        eventClick: function(info) {
+          mostrarDetalhesEvento(info.event);
+        },
+        eventTimeFormat: {
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: false
+        }
+      });
+      
+      calendar.render();
+    }
+
+    function configurarEventos() {
+      // Formulário de cadastro
+      document.getElementById('formEvento').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const evento = {
+          titulo: document.getElementById('titulo').value,
+          descricao: document.getElementById('descricao').value,
+          data_inicio: document.getElementById('dataInicio').value,
+          data_fim: document.getElementById('dataFim').value,
+          tipo: document.getElementById('tipo').value
+        };
+
+        try {
+          const token = localStorage.getItem('token');
+          const response = await fetch('http://localhost:3000/api/eventos', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(evento)
+          });
+
+          const data = await response.json();
+
+          if (data.success) {
+            mostrarToast('Sucesso', 'Evento cadastrado com sucesso!');
+            document.getElementById('formEvento').reset();
+            carregarEventos();
+          } else {
+            mostrarToast('Erro', data.message || 'Erro ao cadastrar evento', 'error');
+          }
+        } catch (error) {
+          console.error('Erro:', error);
+          mostrarToast('Erro', 'Erro ao conectar com o servidor', 'error');
+        }
+      });
+
+      // Botão excluir no modal
+      document.getElementById('btnExcluirEvento').addEventListener('click', function() {
+        const eventId = this.getAttribute('data-event-id');
+        if (eventId) {
+          excluirEvento(eventId);
+        }
+      });
+    }
+
+    async function carregarEventos() {
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch('http://localhost:3000/api/eventos', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.status === 401) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data.success) {
+          eventos = data.eventos;
+          atualizarCalendario();
+          atualizarTabelaEventos();
+        } else {
+          mostrarToast('Erro', data.message || 'Erro ao carregar eventos', 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar eventos:', error);
+        mostrarToast('Erro', 'Erro ao carregar eventos', 'error');
+      }
+    }
+
+    function atualizarCalendario() {
+      calendar.removeAllEvents();
+      
+      eventos.forEach(evento => {
+        calendar.addEvent({
+          id: evento.id,
+          title: evento.titulo,
+          start: evento.data_inicio,
+          end: evento.data_fim || null,
+          description: evento.descricao || '',
+          extendedProps: {
+            tipo: evento.tipo
+          },
+          color: getEventColor(evento.tipo)
+        });
+      });
+    }
+
+    function getEventColor(tipo) {
+      const cores = {
+        'Reunião': '#3498db',
+        'Feriado': '#e74c3c',
+        'Prova': '#2ecc71',
+        'Evento Escolar': '#9b59b6',
+        'Outro': '#f39c12'
+      };
+      return cores[tipo] || '#555';
+    }
+
+    function atualizarTabelaEventos() {
+      const tabela = document.getElementById('tabelaEventos');
+      tabela.innerHTML = '';
+      
+      // Ordenar eventos por data (mais próximos primeiro)
+      const eventosOrdenados = [...eventos].sort((a, b) => 
+        new Date(a.data_inicio) - new Date(b.data_inicio));
+      
+      // Mostrar apenas os próximos 10 eventos
+      const eventosParaMostrar = eventosOrdenados.slice(0, 10);
+      
+      eventosParaMostrar.forEach(evento => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${evento.titulo}</td>
+          <td>${formatarDataHora(evento.data_inicio)}</td>
+          <td><span class="badge" style="background-color: ${getEventColor(evento.tipo)}">${evento.tipo}</span></td>
+          <td>
+            <button class="btn btn-sm btn-primary" onclick="mostrarDetalhesEventoById(${evento.id})">
+              <i class="bi bi-eye"></i> Ver
+            </button>
+          </td>
+        `;
+        tabela.appendChild(row);
+      });
+    }
+
+    function formatarDataHora(dataHora) {
+      if (!dataHora) return '';
+      const options = { 
+        day: '2-digit', 
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit', 
+        minute: '2-digit' 
+      };
+      return new Date(dataHora).toLocaleString('pt-BR', options);
+    }
+
+    function mostrarDetalhesEvento(event) {
+      const evento = eventos.find(e => e.id == event.id);
+      if (!evento) return;
+      
+      document.getElementById('modalTitulo').textContent = evento.titulo;
+      
+      let corpo = `
+        <p><strong>Tipo:</strong> ${evento.tipo}</p>
+        <p><strong>Data/Hora Início:</strong> ${formatarDataHora(evento.data_inicio)}</p>
+      `;
+      
+      if (evento.data_fim) {
+        corpo += `<p><strong>Data/Hora Fim:</strong> ${formatarDataHora(evento.data_fim)}</p>`;
+      }
+      
+      if (evento.descricao) {
+        corpo += `<p><strong>Descrição:</strong> ${evento.descricao}</p>`;
+      }
+      
+      document.getElementById('modalCorpo').innerHTML = corpo;
+      
+      // Mostrar botão de excluir
+      const btnExcluir = document.getElementById('btnExcluirEvento');
+      btnExcluir.style.display = 'block';
+      btnExcluir.setAttribute('data-event-id', evento.id);
+      
+      eventoModal.show();
+    }
+
+    function mostrarDetalhesEventoById(eventId) {
+      const evento = eventos.find(e => e.id == eventId);
+      if (!evento) return;
+      
+      // Criar um objeto de evento fake para o FullCalendar
+      const eventFake = {
+        id: evento.id,
+        title: evento.titulo,
+        start: evento.data_inicio,
+        end: evento.data_fim,
+        extendedProps: {
+          tipo: evento.tipo,
+          descricao: evento.descricao
+        }
+      };
+      
+      mostrarDetalhesEvento(eventFake);
+    }
+
+    async function excluirEvento(eventId) {
+      if (!confirm('Tem certeza que deseja excluir este evento?')) return;
+      
+      try {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`http://localhost:3000/api/eventos/${eventId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+          mostrarToast('Sucesso', 'Evento excluído com sucesso!');
+          eventoModal.hide();
+          carregarEventos();
+        } else {
+          mostrarToast('Erro', data.message || 'Erro ao excluir evento', 'error');
+        }
+      } catch (error) {
+        console.error('Erro:', error);
+        mostrarToast('Erro', 'Erro ao conectar com o servidor', 'error');
+      }
+    }
+
+    function mostrarToast(titulo, mensagem, tipo = 'success') {
+      const toast = new bootstrap.Toast(document.getElementById('liveToast'));
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
+      const toastHeader = document.querySelector('.toast-header');
+      
+      // Configura cores baseadas no tipo
+      toastHeader.className = 'toast-header';
+      if (tipo === 'error') {
+        toastHeader.classList.add('bg-danger', 'text-white');
+      } else if (tipo === 'warning') {
+        toastHeader.classList.add('bg-warning');
+      } else {
+        toastHeader.classList.add('bg-success', 'text-white');
+      }
+      
+      toastTitle.textContent = titulo;
+      toastMessage.textContent = mensagem;
+      toast.show();
+    }
+  </script>
+</body>
+</html>

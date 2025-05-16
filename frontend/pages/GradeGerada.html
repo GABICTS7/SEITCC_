@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Grade Gerada - Gestão Escolar</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Bootstrap Icons -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+  <!-- Animate.css -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+  <style>
+    body {
+      background-color: #f8f9fa;
+    }
+    .header-card {
+      background-color: #0d6efd;
+      color: white;
+      border-radius: 10px;
+    }
+    .grade-table {
+      min-width: 800px;
+    }
+    .grade-table th {
+      background-color: #212529;
+      color: white;
+    }
+    .loading-spinner {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container py-4">
+    <!-- Cabeçalho -->
+    <div class="header-card p-4 mb-4">
+      <div class="d-flex justify-content-between align-items-center">
+        <h1 class="m-0">
+          <i class="bi bi-calendar-week"></i> Grade Gerada
+        </h1>
+        <a href="dashboard.html" class="btn btn-outline-light">
+          <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+      </div>
+    </div>
+
+    <!-- Controles -->
+    <div class="row mb-4">
+      <div class="col-md-6">
+        <button id="btnGerarGrade" class="btn btn-success btn-lg w-100" onclick="confirmarGeracao()">
+          <i class="bi bi-magic"></i> Gerar Grade Automática
+        </button>
+      </div>
+      <div class="col-md-6">
+        <button id="btnExportar" class="btn btn-primary btn-lg w-100" onclick="exportarGrade()" disabled>
+          <i class="bi bi-download"></i> Exportar Grade
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="text-center loading-spinner mb-4">
+      <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">Carregando...</span>
+      </div>
+      <p class="mt-2">Gerando grade, por favor aguarde...</p>
+    </div>
+
+    <!-- Tabela de Grade -->
+    <div class="card shadow">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table grade-table table-striped table-hover" id="tabelaGrade">
+            <thead>
+              <tr>
+                <th>Dia</th>
+                <th>Horário</th>
+                <th>Turno</th>
+                <th>Disciplina</th>
+                <th>Professor</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="gradeBody">
+              <!-- Dados serão carregados aqui via JavaScript -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast de Notificação -->
+    <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 11">
+      <div id="liveToast" class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+          <strong class="me-auto" id="toastTitle">Notificação</strong>
+          <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body" id="toastMessage"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    // Variável global para armazenar a grade
+    let gradeAtual = [];
+
+    // Verificar autenticação ao carregar a página
+    document.addEventListener('DOMContentLoaded', () => {
+      verificarAutenticacao();
+      carregarGradeSalva();
+    });
+
+    function verificarAutenticacao() {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        window.location.href = 'login.html';
+      }
+    }
+
+    function mostrarLoading(mostrar) {
+      const spinner = document.getElementById('loadingSpinner');
+      const btnGerar = document.getElementById('btnGerarGrade');
+      
+      if (mostrar) {
+        spinner.style.display = 'block';
+        btnGerar.disabled = true;
+      } else {
+        spinner.style.display = 'none';
+        btnGerar.disabled = false;
+      }
+    }
+
+    function mostrarToast(titulo, mensagem, tipo = 'success') {
+      const toast = new bootstrap.Toast(document.getElementById('liveToast'));
+      const toastTitle = document.getElementById('toastTitle');
+      const toastMessage = document.getElementById('toastMessage');
+      const toastHeader = document.querySelector('.toast-header');
+      
+      // Configura cores baseadas no tipo
+      if (tipo === 'error') {
+        toastHeader.classList.add('bg-danger', 'text-white');
+      } else if (tipo === 'warning') {
+        toastHeader.classList.add('bg-warning');
+      } else {
+        toastHeader.classList.add('bg-success', 'text-white');
+      }
+      
+      toastTitle.textContent = titulo;
+      toastMessage.textContent = mensagem;
+      toast.show();
+    }
+
+    async function carregarGradeSalva() {
+      try {
+        mostrarLoading(true);
+        const token = localStorage.getItem('token');
+        
+        const response = await fetch('http://localhost:3000/api/grades/3', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+
+        if (response.status === 401) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data.success && data.grade.length > 0) {
+          gradeAtual = data.grade;
+          preencherTabela(gradeAtual);
+          document.getElementById('btnExportar').disabled = false;
+          mostrarToast('Sucesso', 'Grade carregada com sucesso!');
+        } else {
+          mostrarToast('Aviso', 'Nenhuma grade encontrada para esta turma.', 'warning');
+        }
+      } catch (error) {
+        console.error('Erro ao carregar grade:', error);
+        mostrarToast('Erro', 'Falha ao carregar grade.', 'error');
+      } finally {
+        mostrarLoading(false);
+      }
+    }
+
+    function confirmarGeracao() {
+      const confirmar = confirm("Deseja que o sistema gere uma nova grade de horários para esta turma?");
+      if (confirmar) {
+        gerarGradeIA();
+      }
+    }
+
+    async function gerarGradeIA() {
+      try {
+        mostrarLoading(true);
+        const token = localStorage.getItem('token');
+        
+        // 1. Chamar a API para gerar nova grade
+        const response = await fetch('http://localhost:3000/api/grades/gerar', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ turma_id: 3 })
+        });
+
+        if (response.status === 401) {
+          window.location.href = 'login.html';
+          return;
+        }
+
+        const data = await response.json();
+        
+        if (data.success) {
+          // 2. Atualizar a grade local
+          gradeAtual = data.grade;
+          preencherTabela(gradeAtual);
+          document.getElementById('btnExportar').disabled = false;
+          mostrarToast('Sucesso', 'Grade gerada com sucesso!');
+        } else {
+          mostrarToast('Erro', data.message || 'Erro ao gerar grade', 'error');
+        }
+      } catch (error) {
+        console.error('Erro ao gerar grade:', error);
+        mostrarToast('Erro', 'Falha na comunicação com o servidor', 'error');
+      } finally {
+        mostrarLoading(false);
+      }
+    }
+
+    function preencherTabela(grade) {
+      const tbody = document.getElementById('gradeBody');
+      tbody.innerHTML = '';
+
+      grade.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${formatarDia(item.dia_semana)}</td>
+          <td>${item.horario_aula}</td>
+          <td>${item.turno}</td>
+          <td>${item.disciplina}</td>
+          <td>${item.professor_nome || `ID: ${item.professor_id}`}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-primary" onclick="editarAula('${item.id}')">
+              <i class="bi bi-pencil"></i>
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function formatarDia(dia) {
+      const dias = {
+        'segunda': 'Segunda-feira',
+        'terca': 'Terça-feira',
+        'quarta': 'Quarta-feira',
+        'quinta': 'Quinta-feira',
+        'sexta': 'Sexta-feira'
+      };
+      return dias[dia] || dia;
+    }
+
+    function editarAula(idAula) {
+      // Implementar lógica de edição
+      mostrarToast('Aviso', 'Funcionalidade de edição será implementada em breve', 'warning');
+    }
+
+    async function exportarGrade() {
+      try {
+        mostrarLoading(true);
+        
+        // Simular exportação (substitua por chamada real à API)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        mostrarToast('Sucesso', 'Grade exportada com sucesso!');
+        
+        // Criar link de download (exemplo)
+        const blob = new Blob([JSON.stringify(gradeAtual, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `grade_turma_3_${new Date().toISOString().split('T')[0]}.json`;
+        a.click();
+        
+      } catch (error) {
+        console.error('Erro ao exportar grade:', error);
+        mostrarToast('Erro', 'Falha ao exportar grade', 'error');
+      } finally {
+        mostrarLoading(false);
+      }
+    }
+  </script>
+</body>
+</html>

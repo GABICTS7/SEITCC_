@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gerenciar Faltas - Gestão Escolar</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+  <header>
+    <h1>Gerenciar Faltas</h1>
+  </header>
+
+  <nav>
+    <a href="dashboard.html">Dashboard</a>
+  </nav>
+
+  <div class="container">
+    <h2>Registrar Nova Falta</h2>
+    <form id="formFalta">
+      <label for="aluno_id">Aluno ID:</label>
+      <input type="number" id="aluno_id" required>
+
+      <label for="data">Data da Falta:</label>
+      <input type="date" id="data" required>
+
+      <label for="motivo">Motivo:</label>
+      <textarea id="motivo" rows="3"></textarea>
+
+      <button type="submit">Registrar Falta</button>
+    </form>
+
+    <h2>Lista de Faltas</h2>
+    <table id="tabelaFaltas">
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Aluno ID</th>
+          <th>Data</th>
+          <th>Motivo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Faltas serão preenchidas aqui -->
+      </tbody>
+    </table>
+  </div>
+
+  <script>
+    async function buscarFaltas() {
+      try {
+        const response = await fetch('http://localhost:3000/api/faltas');
+        const faltas = await response.json();
+
+        const tabela = document.getElementById('tabelaFaltas').querySelector('tbody');
+        tabela.innerHTML = '';
+
+        faltas.forEach(falta => {
+          const row = `
+            <tr>
+              <td>${falta.id}</td>
+              <td>${falta.aluno_id}</td>
+              <td>${falta.data}</td>
+              <td>${falta.motivo || '-'}</td>
+            </tr>
+          `;
+          tabela.innerHTML += row;
+        });
+
+      } catch (error) {
+        console.error('Erro ao buscar faltas:', error);
+      }
+    }
+
+    document.getElementById('formFalta').addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const aluno_id = document.getElementById('aluno_id').value;
+      const data = document.getElementById('data').value;
+      const motivo = document.getElementById('motivo').value;
+
+      try {
+        const response = await fetch('http://localhost:3000/api/faltas', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ aluno_id, data, motivo })
+        });
+
+        if (response.ok) {
+          alert('Falta registrada com sucesso!');
+          document.getElementById('formFalta').reset();
+          buscarFaltas();
+        } else {
+          const data = await response.json();
+          alert(data.message || 'Erro ao registrar falta.');
+        }
+      } catch (error) {
+        console.error('Erro ao registrar falta:', error);
+      }
+    });
+
+    // Carregar faltas ao abrir a página
+    buscarFaltas();
+  </script>
+
+</body>
+</html>
